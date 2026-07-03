@@ -1,8 +1,8 @@
-name: Currency Rates Monitoring Workflow
+name: AutoTest Currency Valyut
 
 on:
   schedule:
-    - cron: '0 */2 * * *' # Запуск каждые 2 часа
+    - cron: '0 */2 * * *' 
   workflow_dispatch:
     inputs:
       user_chat_id:
@@ -20,45 +20,42 @@ jobs:
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
-          spec: cypress/e2e/monitoring/staff_management.cy.js 
+          spec: cypress/e2e/monitoring/exange.cy.js 
           browser: chrome
         env:
           CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
-        continue-on-error: true
 
       - name: Parse Diagnostic Data
         if: always()
         run: |
-          if [ -f auth_api_status.txt ]; then
-            RESULT=$(cat auth_api_status.txt | tr -d '[:space:]')
+          if [ -f provider_rates_status.txt ]; then
+            RESULT=$(cat provider_rates_status.txt | tr -d '[:space:]')
           else
             RESULT="UNKNOWN"
           fi
 
-          S1="⏳"; S2="⏳"; S3="⏳"; S4="⏳"; STATUS="🔴 Failed"
+          S1="⏳"; S2="⏳"; S3="⏳"; STATUS="🔴 Failed"
 
           case "$RESULT" in
-            "0") S1="❌"; STATUS="❌ UI Crash at Auth" ;;
-            "1") S1="✅"; S2="❌"; STATUS="⚠️ Failed at Create" ;;
-            "2") S1="✅"; S2="✅"; S3="❌"; STATUS="⚠️ Failed at Edit" ;;
-            "3") S1="✅"; S2="✅"; S3="✅"; S4="❌"; STATUS="⚠️ Failed at Delete" ;;
-            "4") S1="✅"; S2="✅"; S3="✅"; S4="✅"; STATUS="🟢 Success" ;;
-            ERROR_*) S1="🆘 ${RESULT}"; STATUS="🔴 Auth API Error" ;;
+            "0") S1="❌"; STATUS="❌ Failed at Add" ;;
+            "1") S1="✅"; S2="❌"; STATUS="⚠️ Failed at Edit" ;;
+            "2") S1="✅"; S2="✅"; S3="❌"; STATUS="⚠️ Failed at Delete" ;;
+            "3") S1="✅"; S2="✅"; S3="✅"; STATUS="🟢 Success" ;;
+            ERROR_*) S1="🆘 ${RESULT}"; STATUS="🔴 API Error" ;;
             *) STATUS="❌ Unknown Failure / File Missing" ;;
           esac
 
           echo "S1=$S1" >> $GITHUB_ENV
           echo "S2=$S2" >> $GITHUB_ENV
           echo "S3=$S3" >> $GITHUB_ENV
-          echo "S4=$S4" >> $GITHUB_ENV
           echo "FINAL_STATUS=$STATUS" >> $GITHUB_ENV
 
       - name: Upload Cypress Screenshots & Videos
         uses: actions/upload-artifact@v4
         if: failure() || always()
         with:
-          name: cypress-artifacts-staff
+          name: cypress-artifacts-exange
           path: |
             cypress/screenshots/
             cypress/videos/
@@ -75,10 +72,12 @@ jobs:
           token: ${{ secrets.TELEGRAM_TOKEN }} 
           format: markdown
           message: |
-            ${{ github.event_name == 'schedule' && '📢 **Automated Monitoring**' || '👤 **Manual Testing**' }}
+            ${{ github.event_name == 'schedule' && '📢 **Hourly Monitoring**' || '👤 **Manual Testing**' }}
             
-            👥 **Staff Management Result**
-            **Stages:** Auth (${{ env.S1 }}) ➡️ Create (${{ env.S2 }}) ➡️ Edit (${{ env.S3 }}) ➡️ Delete (${{ env.S4 }})
-            **Job Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}
-            **Backend/UI:** ${{ env.FINAL_STATUS }}
-            **Time:** ${{ github.event_name == 'schedule' && 'Scheduled ⏰' || 'Manual 🔘' }}
+            📂 **Module:** Currency Valyut (Exange)
+            📊 **Status:** ${{ env.FINAL_STATUS }}
+
+            **Flow Steps:**
+            1. Add: ${{ env.S1 }}
+            2. Edit: ${{ env.S2 }}
+            3. Delete: ${{ env.S3 }}
