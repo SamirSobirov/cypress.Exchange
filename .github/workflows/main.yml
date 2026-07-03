@@ -17,9 +17,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Добавлен id для отслеживания результата этого конкретного шага
       - name: Cypress run
-        id: cypress_step
         uses: cypress-io/github-action@v6
         with:
           spec: cypress/e2e/monitoring/exange.cy.js 
@@ -31,17 +29,15 @@ jobs:
       - name: Parse Diagnostic Data
         if: always()
         run: |
-          # 1. Ищем файл в корне
-          if [ -f provider_rates_status.txt ]; then
-            RESULT=$(cat provider_rates_status.txt | tr -d '[:space:]')
-          # 2. Ищем файл в стандартной папке fixtures, если Cypress сохранил его туда
-          elif [ -f cypress/fixtures/provider_rates_status.txt ]; then
-            RESULT=$(cat cypress/fixtures/provider_rates_status.txt | tr -d '[:space:]')
-          # 3. УМНЫЙ ФОЛЛБЭК: Если файла нет, но Cypress прошел успешно — ставим статус 3 (Success)
-          elif [ "${{ steps.cypress_step.outcome }}" == "success" ]; then
+          # Прямая проверка глобального статуса. 
+          # Если Cypress не упал, статус job будет "success"
+          if [ "${{ job.status }}" = "success" ]; then
             RESULT="3"
-          # 4. Если Cypress упал и файла нет
+          elif [ -f provider_rates_status.txt ]; then
+            # Если Cypress упал, пытаемся прочитать шаг из файла (если ты его всё же создашь)
+            RESULT=$(cat provider_rates_status.txt | tr -d '[:space:]')
           else
+            # Если упал, а файла нет
             RESULT="UNKNOWN"
           fi
 
@@ -53,7 +49,7 @@ jobs:
             "2") S1="✅"; S2="✅"; S3="❌"; STATUS="⚠️ Failed at Delete" ;;
             "3") S1="✅"; S2="✅"; S3="✅"; STATUS="🟢 Success" ;;
             ERROR_*) S1="🆘 ${RESULT}"; STATUS="🔴 API Error" ;;
-            *) STATUS="❌ Cypress Test Failed / No Data" ;;
+            *) STATUS="❌ Cypress Test Failed / Unknown Step" ;;
           esac
 
           echo "S1=$S1" >> $GITHUB_ENV
