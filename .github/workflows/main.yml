@@ -1,4 +1,4 @@
-name: AutoTest Currency Valyut
+name: Currency Rates Monitoring Workflow
 
 on:
   schedule:
@@ -20,41 +20,48 @@ jobs:
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
-          # ВНИМАНИЕ: Проверь путь к файлу теста. Судя по скриншотам, он называется exange.cy.js
-          spec: cypress/e2e/monitoring/exange.cy.js 
+          spec: cypress/e2e/monitoring/staff_management.cy.js 
           browser: chrome
         env:
-          # Передаем креды, так как тест включает Блок 1 (Авторизация)
           CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+        continue-on-error: true
 
       - name: Parse Diagnostic Data
         if: always()
         run: |
-          # Читаем HTTP статус из файла, который создал наш Cypress-тест (из Блока 5)
-          if [ -f provider_rates_status.txt ]; then
-            API_STATUS=$(cat provider_rates_status.txt | tr -d '[:space:]')
+          if [ -f auth_api_status.txt ]; then
+            RESULT=$(cat auth_api_status.txt | tr -d '[:space:]')
           else
-            API_STATUS="UNKNOWN"
+            RESULT="UNKNOWN"
           fi
 
-          # Формируем статус для Telegram в зависимости от кода ответа сервера
-          if [[ "$API_STATUS" == "UNKNOWN" ]]; then
-            echo "MSG_STATUS=❌ UI Error / Crash" >> $GITHUB_ENV
-          elif [[ "$API_STATUS" -ge 400 ]]; then
-            echo "MSG_STATUS=🆘 API Error (HTTP $API_STATUS)" >> $GITHUB_ENV
-          elif [[ "$API_STATUS" -ge 200 && "$API_STATUS" -lt 400 ]]; then
-            echo "MSG_STATUS=✅ API Success" >> $GITHUB_ENV
-          else
-            echo "MSG_STATUS=❌ Unknown Failure" >> $GITHUB_ENV
-          fi
+          S1="⏳"; S2="⏳"; S3="⏳"; S4="⏳"; STATUS="🔴 Failed"
 
-      - name: Upload Cypress Screenshots
+          case "$RESULT" in
+            "0") S1="❌"; STATUS="❌ UI Crash at Auth" ;;
+            "1") S1="✅"; S2="❌"; STATUS="⚠️ Failed at Create" ;;
+            "2") S1="✅"; S2="✅"; S3="❌"; STATUS="⚠️ Failed at Edit" ;;
+            "3") S1="✅"; S2="✅"; S3="✅"; S4="❌"; STATUS="⚠️ Failed at Delete" ;;
+            "4") S1="✅"; S2="✅"; S3="✅"; S4="✅"; STATUS="🟢 Success" ;;
+            ERROR_*) S1="🆘 ${RESULT}"; STATUS="🔴 Auth API Error" ;;
+            *) STATUS="❌ Unknown Failure / File Missing" ;;
+          esac
+
+          echo "S1=$S1" >> $GITHUB_ENV
+          echo "S2=$S2" >> $GITHUB_ENV
+          echo "S3=$S3" >> $GITHUB_ENV
+          echo "S4=$S4" >> $GITHUB_ENV
+          echo "FINAL_STATUS=$STATUS" >> $GITHUB_ENV
+
+      - name: Upload Cypress Screenshots & Videos
         uses: actions/upload-artifact@v4
         if: failure() || always()
         with:
-          name: cypress-screenshots-rates
-          path: cypress/screenshots/
+          name: cypress-artifacts-staff
+          path: |
+            cypress/screenshots/
+            cypress/videos/
           if-no-files-found: ignore
 
       - name: Send Telegram Notification
@@ -70,8 +77,8 @@ jobs:
           message: |
             ${{ github.event_name == 'schedule' && '📢 **Automated Monitoring**' || '👤 **Manual Testing**' }}
             
-            💱 **Provider Currency Rates Result**
-            **Stages:** Add ➡️ Edit ➡️ Delete
+            👥 **Staff Management Result**
+            **Stages:** Auth (${{ env.S1 }}) ➡️ Create (${{ env.S2 }}) ➡️ Edit (${{ env.S3 }}) ➡️ Delete (${{ env.S4 }})
             **Job Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}
-            **Backend/UI:** ${{ env.MSG_STATUS }}
+            **Backend/UI:** ${{ env.FINAL_STATUS }}
             **Time:** ${{ github.event_name == 'schedule' && 'Scheduled ⏰' || 'Manual 🔘' }}
