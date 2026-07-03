@@ -1,4 +1,4 @@
-name: Providers Management
+name: Course Valyut Monitoring
 
 on:
   schedule:
