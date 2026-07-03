@@ -1,4 +1,4 @@
-name: AutoTest Currency Rates (Provider CRUD)
+name: AutoTest Currency Valyut
 
 on:
   schedule:
