@@ -1,89 +1,89 @@
-name: AutoTest Currency Valyut
+# name: AutoTest Currency Valyut
 
-on:
-  schedule:
-    - cron: '0 */2 * * *' 
-  workflow_dispatch:
-    inputs:
-      user_chat_id:
-        description: 'ID чата для личного ответа'
-        required: false
-        default: ''
+# on:
+#   schedule:
+#     - cron: '0 */2 * * *' 
+#   workflow_dispatch:
+#     inputs:
+#       user_chat_id:
+#         description: 'ID чата для личного ответа'
+#         required: false
+#         default: ''
 
-jobs:
-  cypress-run:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+# jobs:
+#   cypress-run:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
 
-      - name: Cypress run
-        uses: cypress-io/github-action@v6
-        with:
-          spec: cypress/e2e/monitoring/exange.cy.js 
-          browser: chrome
-        env:
-          CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
-          CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+#       - name: Cypress run
+#         uses: cypress-io/github-action@v6
+#         with:
+#           spec: cypress/e2e/monitoring/exange.cy.js 
+#           browser: chrome
+#         env:
+#           CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+#           CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
 
-      - name: Parse Diagnostic Data
-        if: always()
-        run: |
-          # Прямая проверка глобального статуса. 
-          # Если Cypress не упал, статус job будет "success"
-          if [ "${{ job.status }}" = "success" ]; then
-            RESULT="3"
-          elif [ -f provider_rates_status.txt ]; then
-            # Если Cypress упал, пытаемся прочитать шаг из файла (если ты его всё же создашь)
-            RESULT=$(cat provider_rates_status.txt | tr -d '[:space:]')
-          else
-            # Если упал, а файла нет
-            RESULT="UNKNOWN"
-          fi
+#       - name: Parse Diagnostic Data
+#         if: always()
+#         run: |
+#           # Прямая проверка глобального статуса. 
+#           # Если Cypress не упал, статус job будет "success"
+#           if [ "${{ job.status }}" = "success" ]; then
+#             RESULT="3"
+#           elif [ -f provider_rates_status.txt ]; then
+#             # Если Cypress упал, пытаемся прочитать шаг из файла (если ты его всё же создашь)
+#             RESULT=$(cat provider_rates_status.txt | tr -d '[:space:]')
+#           else
+#             # Если упал, а файла нет
+#             RESULT="UNKNOWN"
+#           fi
 
-          S1="⏳"; S2="⏳"; S3="⏳"; STATUS="🔴 Failed"
+#           S1="⏳"; S2="⏳"; S3="⏳"; STATUS="🔴 Failed"
 
-          case "$RESULT" in
-            "0") S1="❌"; STATUS="❌ Failed at Add" ;;
-            "1") S1="✅"; S2="❌"; STATUS="⚠️ Failed at Edit" ;;
-            "2") S1="✅"; S2="✅"; S3="❌"; STATUS="⚠️ Failed at Delete" ;;
-            "3") S1="✅"; S2="✅"; S3="✅"; STATUS="🟢 Success" ;;
-            ERROR_*) S1="🆘 ${RESULT}"; STATUS="🔴 API Error" ;;
-            *) STATUS="❌ Cypress Test Failed / Unknown Step" ;;
-          esac
+#           case "$RESULT" in
+#             "0") S1="❌"; STATUS="❌ Failed at Add" ;;
+#             "1") S1="✅"; S2="❌"; STATUS="⚠️ Failed at Edit" ;;
+#             "2") S1="✅"; S2="✅"; S3="❌"; STATUS="⚠️ Failed at Delete" ;;
+#             "3") S1="✅"; S2="✅"; S3="✅"; STATUS="🟢 Success" ;;
+#             ERROR_*) S1="🆘 ${RESULT}"; STATUS="🔴 API Error" ;;
+#             *) STATUS="❌ Cypress Test Failed / Unknown Step" ;;
+#           esac
 
-          echo "S1=$S1" >> $GITHUB_ENV
-          echo "S2=$S2" >> $GITHUB_ENV
-          echo "S3=$S3" >> $GITHUB_ENV
-          echo "FINAL_STATUS=$STATUS" >> $GITHUB_ENV
+#           echo "S1=$S1" >> $GITHUB_ENV
+#           echo "S2=$S2" >> $GITHUB_ENV
+#           echo "S3=$S3" >> $GITHUB_ENV
+#           echo "FINAL_STATUS=$STATUS" >> $GITHUB_ENV
 
-      - name: Upload Cypress Screenshots & Videos
-        uses: actions/upload-artifact@v4
-        if: failure() || always()
-        with:
-          name: cypress-artifacts-exange
-          path: |
-            cypress/screenshots/
-            cypress/videos/
-          if-no-files-found: ignore
+#       - name: Upload Cypress Screenshots & Videos
+#         uses: actions/upload-artifact@v4
+#         if: failure() || always()
+#         with:
+#           name: cypress-artifacts-exange
+#           path: |
+#             cypress/screenshots/
+#             cypress/videos/
+#           if-no-files-found: ignore
 
-      - name: Send Telegram Notification
-        if: always()
-        uses: appleboy/telegram-action@master
-        with:
-          to: >-
-            ${{ (github.event.inputs.user_chat_id != '') && 
-            github.event.inputs.user_chat_id || 
-            secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }} 
-          format: markdown
-          message: |
-            ${{ github.event_name == 'schedule' && '📢 **Hourly Monitoring**' || '👤 **Manual Testing**' }}
+#       - name: Send Telegram Notification
+#         if: always()
+#         uses: appleboy/telegram-action@master
+#         with:
+#           to: >-
+#             ${{ (github.event.inputs.user_chat_id != '') && 
+#             github.event.inputs.user_chat_id || 
+#             secrets.TELEGRAM_CHAT_ID }}
+#           token: ${{ secrets.TELEGRAM_TOKEN }} 
+#           format: markdown
+#           message: |
+#             ${{ github.event_name == 'schedule' && '📢 **Hourly Monitoring**' || '👤 **Manual Testing**' }}
             
-            📂 **Module:** Currency Valyut (Exange)
-            📊 **Status:** ${{ env.FINAL_STATUS }}
+#             📂 **Module:** Currency Valyut (Exange)
+#             📊 **Status:** ${{ env.FINAL_STATUS }}
 
-            **Flow Steps:**
-            1. Add: ${{ env.S1 }}
-            2. Edit: ${{ env.S2 }}
-            3. Delete: ${{ env.S3 }}
+#             **Flow Steps:**
+#             1. Add: ${{ env.S1 }}
+#             2. Edit: ${{ env.S2 }}
+#             3. Delete: ${{ env.S3 }}
