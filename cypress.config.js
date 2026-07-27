@@ -6,7 +6,7 @@ module.exports = defineConfig({
   allowCypressEnv: false, // 👈 ДОБАВЬ ЭТУ СТРОКУ
 
   e2e: {
-    baseUrl: 'https://stage.metatrip-system.uz/flight/ru/home',
+    baseUrl: 'https://b2b.metatrip.asia/sign-in',
     watchForFileChanges: false,
     viewportWidth: 1280,
     viewportHeight: 800,
