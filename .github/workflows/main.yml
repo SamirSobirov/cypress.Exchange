@@ -2,7 +2,7 @@ name: AutoTest Currency Valyut
 
 on:
   schedule:
-    - cron: '0 */2 * * *' 
+    - cron: '0 */7 * * *' 
   workflow_dispatch:
     inputs:
       user_chat_id:
@@ -80,7 +80,7 @@ jobs:
           message: |
             ${{ github.event_name == 'schedule' && '📢 **Hourly Monitoring**' || '👤 **Manual Testing**' }}
             
-            📂 **Module:** Kurs Valyut
+            📂 **Module:** B2B Kurs Valyut
             📊 **Status:** ${{ env.FINAL_STATUS }}
 
             **Flow Steps:**
